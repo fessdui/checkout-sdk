@@ -1,0 +1,88 @@
+<div class="sidebar-nav-mobile">
+    {{#if category.subcategories}}
+            <a href="#subcategoryList" role="button" class="{{#if category.faceted_search_enabled}}facetedSearch-toggle{{/if}} toggleLink toggleSidebarBlock button" data-collapsible>
+                <span class="facetedSearch-toggle-indicator">
+                    <span class="toggleLink-text toggleLink-text--on">
+                        <i class="icon" aria-hidden="true">
+                            <svg><use xlink:href="#icon-close"></use></svg>
+                        </i>
+                        <span>Close to View Results</span>
+                    </span>
+                    <span class="toggleLink-text toggleLink-text--off">
+                        <span>
+                            <i class="icon" aria-hidden="true">
+                                <svg><use xlink:href="#icon-sort"></use></svg>
+                            </i>
+                            Subcategories
+                        </span>
+                    </span>
+                </span>
+            </a>
+    {{/if}}
+    {{#if template '!==' 'pages/custom/category/category-nofilters'}}
+        {{#or category.faceted_search_enabled theme_settings.shop_by_price_visible}}
+            <a href="#facetedSearch-navList" role="button" class="facetedSearch-toggle toggleLink button" data-collapsible="" aria-controls="facetedSearch-navList" aria-expanded="true">
+                <span class="facetedSearch-toggle-indicator">
+                    <span class="toggleLink-text toggleLink-text--on">
+                        <i class="icon" aria-hidden="true">
+                            <svg><use xlink:href="#icon-close"></use></svg>
+                        </i>
+                        Close to View Results
+                    </span>
+
+                    <span class="toggleLink-text toggleLink-text--off">
+                        <i class="icon" aria-hidden="true">
+                            <svg><use xlink:href="#icon-filter"></use></svg>
+                        </i>
+                        <span>Filter</span>
+                    </span>
+                </span>
+            </a>
+        {{/or}}
+    {{/if}}
+</div>
+
+<nav class="{{#if category.faceted_search_enabled}}facetedSearch-enabled{{/if}}">
+    {{#if category.subcategories}}
+        {{#if theme_settings.subcategories_left_column}}
+            <div class="facetedSearch sidebarBlock">
+                <a href="#subcategoryList" role="button" class="{{#if category.faceted_search_enabled}}facetedSearch-toggle{{/if}} toggleLink toggleSidebarBlock button" data-collapsible>
+                    <span class="facetedSearch-toggle-indicator">
+                        <span class="toggleLink-text toggleLink-text--on">
+                            Hide subcategories
+                            <i class="icon" aria-hidden="true">
+                                <svg><use xlink:href="#icon-chevron-down" /></svg>
+                            </i>
+                        </span>
+                        <span class="toggleLink-text toggleLink-text--off">
+                            Show subcategories
+                            <i class="icon" aria-hidden="true">
+                                <svg><use xlink:href="#icon-chevron-down" /></svg>
+                            </i>
+                        </span>
+                    </span>
+                </a>
+                <div id="subcategoryList" class="facetedSearch-navList blocker-container">
+                    <div class="accordion accordion--navList">
+                        <h5 class="sidebarBlock-heading">{{category.name}}</h5>
+                        <ul class="navList">
+                            {{#each category.subcategories}}
+                            <li class="navList-item">
+                                <a class="navList-action" href="{{url}}" alt="{{name}}" title="{{name}}">{{name}}</a>
+                            </li>
+                            {{/each}}
+                        </ul>
+                    </div>
+                    <div class="blocker" style="display: none;"></div>
+                </div>
+            </div>
+        {{/if}}
+    {{/if}}
+    {{#if template '!==' 'pages/custom/category/category-nofilters'}}
+    {{#if category.faceted_search_enabled}}
+        {{> components/faceted-search/index category}}
+    {{else if theme_settings.shop_by_price_visible}}
+        {{> components/category/shop-by-price shop_by_price=category.shop_by_price category_url=category.url}}
+    {{/if}}
+    {{/if}}
+</nav>
