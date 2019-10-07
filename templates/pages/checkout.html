@@ -28,7 +28,16 @@
     </div>
 </header>
 
-{{{ checkout.checkout_content }}}
+<div id="checkout-app"></div>
+
+<!--{{{ checkout.checkout_content }}}-->
+
+<script>window.__webpack_public_path__ = "{{cdn 'assets/dist/'}}";</script>
+<script src="{{cdn 'assets/dist/theme-bundle.main.js'}}"></script>
+
+<script>
+    window.stencilBootstrap("{{page_type}}", {{jsContext}}).load();
+</script>
 
 {{{ footer.scripts }}}
 

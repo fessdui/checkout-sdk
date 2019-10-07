@@ -35,6 +35,30 @@ module.exports = {
                     },
                 },
             },
+            {
+                test: /\.jsx$/,
+                exclude: /node_modules/,
+                use: {
+                    loader: "babel-loader",
+                    options: {
+                        presets: ['@babel/preset-react'],
+                    },
+                }
+            },
+            {
+                test: /\.scss$/,
+                use:  [
+                    'style-loader',
+                    {
+                        loader: 'css-loader',
+                        options: {
+                            modules: true
+                        }
+                    },
+                    'sass-loader'
+                ],
+            },
+
         ],
     },
     output: {
@@ -64,6 +88,7 @@ module.exports = {
         }),
     ],
     resolve: {
+        extensions: ['.js', '.jsx'],
         alias: {
             jquery: path.resolve(__dirname, 'node_modules/jquery/dist/jquery.min.js'),
             jstree: path.resolve(__dirname, 'node_modules/jstree/dist/jstree.min.js'),
