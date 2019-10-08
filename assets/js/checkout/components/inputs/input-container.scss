@@ -55,4 +55,17 @@
     height: 36px;
     padding: 8px 12px;
     width: 100%;
+
+    &.error{
+        border: 1px solid red;
+        color: red;
+    }
+}
+
+.error_message {
+    color: red;
+}
+
+.hidden {
+    display: none;
 }

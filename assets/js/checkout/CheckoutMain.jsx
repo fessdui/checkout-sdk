@@ -18,9 +18,12 @@ export default class Checkout extends React.PureComponent {
         this.state = {
             isPlacingOrder: false,
             showSignInPanel: false,
+            validationErrors: {},
+            customerEmail: '',
+            customerFirstName: '',
+            customerLastName: '',
+            customerCompanyName: '',
         };
-
-        // this.formatPrice = this.formatPrice.bind(this);
     }
 
     componentDidMount() {
@@ -38,13 +41,15 @@ export default class Checkout extends React.PureComponent {
     }
 
     componentDidUpdate(prevProps, prevState, snapshot) {
-        const {data} = this.state;
+        const {data, validationErrors} = this.state;
 
         if (prevState.data !== data) {
             if (data) {
                 this.setCustomer(this.prepareCustomerData(data));
             }
         }
+
+        console.log(validationErrors, 'validationErrors');
     }
 
     componentWillUnmount() {
@@ -58,7 +63,7 @@ export default class Checkout extends React.PureComponent {
      * @returns {{fullName: *, company: *, email: *}}
      */
     prepareCustomerData(data) {
-        const {id, email, fullName, addresses} = data.getCustomer();
+        const {id, email, firstName, lastName, addresses} = data.getCustomer();
         let result = false;
 
         if (id !== 0) {
@@ -68,7 +73,7 @@ export default class Checkout extends React.PureComponent {
                 company = addresses[0].company
             }
 
-            result = {email, fullName, company};
+            result = {email, firstName, lastName, company};
         }
 
         return result;
@@ -141,17 +146,18 @@ export default class Checkout extends React.PureComponent {
      * @returns {*}
      */
     renderUserForm() {
-        let {data, customerEmail, customerFullName, customerCompanyName} = this.state;
+        let {data, customerEmail, customerFirstName, customerLastName, customerCompanyName, validationErrors} = this.state;
 
         if (data) {
             return <UserForm
                 email={customerEmail}
-                fullName={customerFullName}
+                firstName={customerFirstName}
+                lastName={customerLastName}
+                validationErrors={validationErrors}
                 companyName={customerCompanyName}
-                updateHandle={(data) => {
-                    let {userEmail, company, name} = data;
-                    console.log(data, 'UserForm');
-                    this.setCustomer({email: userEmail, company, fullName: name});
+                updateHandle={data => {
+                    this.setState({validationErrors: {}});
+                    this.setCustomer(data);
                 }}
             />
         }
@@ -164,8 +170,9 @@ export default class Checkout extends React.PureComponent {
      */
     setCustomer(customer) {
         if (customer) {
-            let {email, company, fullName} = customer;
-            this.setState({customerEmail: email, customerFullName: fullName, customerCompanyName: company})
+            let {email, firstName, lastName, company} = customer;
+            console.log(email, firstName, lastName, company, 'setCustomer');
+            this.setState({customerEmail: email, customerFirstName: firstName, customerLastName: lastName, customerCompanyName: company})
         }
     };
 
@@ -189,6 +196,10 @@ export default class Checkout extends React.PureComponent {
     _submitOrder(event, isGuest) {
         event.preventDefault();
 
+        if (!this.validate()) {
+            return;
+        }
+
         let address = {
             address1: "Test Adress 23 /3",
             address2: "Club Campestre",
@@ -205,16 +216,14 @@ export default class Checkout extends React.PureComponent {
             stateOrProvinceCode: "",
         };
 
-        let {customerEmail, customerFullName, customerCompanyName} = this.state;
-
-        const [firstName, lastName] = customerFullName.split(' ');
+        let {customerEmail, customerFirstName, customerLastName , customerCompanyName} = this.state;
 
         /**
          * Set data params to address.
          *
          * @type {Address&{firstName: string, lastName: string, company: string, email: string}}
          */
-        address = {...address, email: customerEmail, company: customerCompanyName, firstName, lastName};
+        address = {...address, email: customerEmail, company: customerCompanyName, firstName: customerFirstName, lastName: customerLastName};
 
         const {data} = this.state;
         const {service} = this;
@@ -264,7 +273,12 @@ export default class Checkout extends React.PureComponent {
             });
     };
 
-    renderCheckout() {
+    /**
+     * Render submit btn.
+     *
+     * @returns {*}
+     */
+    renderCheckoutSubmit() {
         const {data} = this.state;
 
         return (
@@ -317,7 +331,7 @@ export default class Checkout extends React.PureComponent {
                             <>
                                 {this.renderLoginPanel()}
                                 {this.renderUserForm()}
-                                {this.renderCheckout()}
+                                {this.renderCheckoutSubmit()}
                             </>
                         }/>
                     </div>
@@ -330,6 +344,91 @@ export default class Checkout extends React.PureComponent {
 
         return result;
     };
+
+    _validation(name, value, callback = () => {}) {
+        this.setState({validationErrors: {}});
+        const errors = {};
+
+        switch (name) {
+            case 'customerFirstName':
+                if (value.length <= 0) {
+                    errors.customerFirstName = 'First Name is required!'
+                }
+                break;
+            case 'customerLastName':
+                if (value.length <= 0) {
+                    errors.customerLastName = 'Last Name is required!'
+                }
+                break;
+            case 'customerEmail':
+                let regex = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;;
+
+                if (!regex.test(value.toLowerCase())) {
+                    errors.customerEmail = 'Email is not valid!'
+                }
+
+                break;
+            case 'customerCompanyName':
+                if (value.length <= 0 ) {
+                    errors.customerCompanyName = 'Company Name is required!';
+                }
+
+                if (value.length >= 120) {
+                    errors.customerCompanyName = 'Company Name could not be more than 120 characters!';
+                }
+                break;
+            default:
+                break;
+        }
+
+        if (typeof callback == 'function') {
+            callback(errors);
+        }
+
+        return !Object.keys(errors).length > 0;
+    }
+
+    validate() {
+        let stateKeys = Object.keys(this.state);
+
+        // Filter state and return array with fields name and it`s values.
+        let userData = stateKeys.map( value => {
+            if (typeof this.state[value] == 'string' || typeof this.state[value] == 'undefined') {
+                let object = {};
+                object['field'] = value;
+                object['value'] = this.state[value] || '';
+                return object;
+            }
+        }).filter(item => item !== undefined);
+
+        let errors = {};
+
+        // validate each items.
+        let result = userData.map((item) => this._validation(item.field, item.value, (errorsArray) => {
+            errors = {...errors, ...errorsArray};
+        }));
+
+        this.setState({validationErrors: errors});
+
+        // Filter and return unique result from array of boolean items.
+        let  uniqueResult = ((arr) => {
+            let result = [];
+
+            for (let str of arr) {
+                if (!result.includes(str)) {
+                    result.push(str);
+                }
+            }
+
+            return result;
+        })(result);
+
+        if (uniqueResult.length > 1) {
+            return uniqueResult.pop() && uniqueResult.pop();
+        } else {
+            return uniqueResult.pop();
+        }
+    }
 
     render() {
         return (
