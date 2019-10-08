@@ -2,6 +2,7 @@ import React, { Fragment, useState } from 'react';
 import EmailInput from '../inputs/EmailInput';
 import PasswordInput from '../inputs/PasswordInput';
 import SubmitButton from '../submit/SubmitButton';
+import styles from './login-panel.scss';
 
 export default function LoginPanel({onClick, onClose, errors, isSigningIn}) {
 
@@ -17,7 +18,19 @@ export default function LoginPanel({onClick, onClose, errors, isSigningIn}) {
     }
 
     return (
-        <form onSubmit={ (event) => _signIn(event) }>
+        <div className={ styles.container }>
+            <div className={ styles.header }>
+                <div className={ styles.heading }>
+                    Welcome Back!
+                </div>
+
+                <a
+                    onClick={ onClose }
+                    className={ styles.closeButton }>
+                    &#10005;
+                </a>
+            </div>
+            <form onSubmit={ (event) => _signIn(event) }>
             { errors && errors.body.detail }
 
             <div>
@@ -40,5 +53,6 @@ export default function LoginPanel({onClick, onClose, errors, isSigningIn}) {
                     isLoading={ isSigningIn } />
             </div>
         </form>
+        </div>
     );
 }

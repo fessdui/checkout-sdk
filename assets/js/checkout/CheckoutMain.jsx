@@ -1,86 +1,103 @@
-import React, { useState, useEffect } from 'react';
-import { createCheckoutService } from '@bigcommerce/checkout-sdk';
-import ReactDOM from 'react-dom';
+import React, { Fragment } from 'react';
+import {createCheckoutService} from '@bigcommerce/checkout-sdk';
 import LoginPanel from './components/login/LoginPanel';
 import LoadingState from './components/loading-state/LoadingState';
 import SubmitButton from './components/submit/SubmitButton';
 import UserForm from './components/user-form/UserForm'
+import Layout from './components/layout/layout';
+import Cart from './components/cart/Cart';
+import {formatPrice} from './helpers/price'
+import Panel from './components/panel/Panel';
+import styles from './checkout.scss';
 
-import { formatPrice } from './helpers/price'
+export default class Checkout extends React.PureComponent {
+    constructor(props) {
+        super(props);
 
-export default function CheckoutMain(props) {
+        this.service = createCheckoutService();
+        this.state = {
+            isPlacingOrder: false,
+            showSignInPanel: false,
+        };
 
-    const [state, setState] = useState({});
-    const [isPlacingOrder, setIsPlacingOrder] = useState(false);
-    const [showSignInPanel, setShowSignInPanel] = useState(false);
+        // this.formatPrice = this.formatPrice.bind(this);
+    }
 
-    const [customerEmail, setCustomerEmail] = useState('');
-    const [customerCompanyName, setCustomerCompanyName] = useState('');
-    const [customerFullName, setCustomerFullName] = useState('');
-
-    const service = createCheckoutService();
-    let unsubscribe = null;
-    
-    const { data, errors, statuses } = state;
-    
-    // Similar to componentDidMount
-    useEffect(() => {
+    componentDidMount() {
         Promise.all([
-            service.loadCheckout(),
-            service.loadShippingCountries(),
-            service.loadShippingOptions(),
-            service.loadBillingCountries(),
-            service.loadPaymentMethods(),
+            this.service.loadCheckout(),
+            this.service.loadShippingCountries(),
+            this.service.loadShippingOptions(),
+            this.service.loadBillingCountries(),
+            this.service.loadPaymentMethods()
         ]).then(() => {
-            unsubscribe = service.subscribe((checkoutData) => {
-                console.log(checkoutData, 'checkoutData');
-                setState(checkoutData);
+            this.unsubscribe = this.service.subscribe((state) => {
+                this.setState(state);
             });
         });
+    }
 
-        return () => {
-            unsubscribe();
+    componentDidUpdate(prevProps, prevState, snapshot) {
+        const {data} = this.state;
+
+        if (prevState.data !== data) {
+            if (data) {
+                this.setCustomer(this.prepareCustomerData(data));
+            }
         }
-    }, []);
+    }
 
-    useEffect(() => {
-        
-        const {data} = state;
-        if (data) {
-            const {id} = state.data.getCustomer();
-    
-            if (id === 0) {
-                setShowSignInPanel(true);
+    componentWillUnmount() {
+        this.unsubscribe();
+    }
+
+    /**
+     * Prepare customer data.
+     *
+     * @param data
+     * @returns {{fullName: *, company: *, email: *}}
+     */
+    prepareCustomerData(data) {
+        const {id, email, fullName, addresses} = data.getCustomer();
+        let result = false;
+
+        if (id !== 0) {
+            let company = '';
+
+            if (addresses.length > 0) {
+                company = addresses[0].company
             }
 
-            const {email, fullName, addresses } = data.getCustomer();
-            let {company} = addresses.pop();
-            console.log(email, fullName)
-            setCustomerEmail(email);
-            setCustomerCompanyName(company);
-            setCustomerFullName(fullName);
+            result = {email, fullName, company};
         }
-    }, [state]);
 
-
+        return result;
+    };
 
     /**
      * Login form.
      *
      * @returns {string}
      */
-    const renderLoginPannel = () => {
+    renderLoginPanel() {
+        let {data, showSignInPanel, statuses, errors} = this.state;
         let result = '';
         if (data) {
             if (showSignInPanel) {
-                result = (<LoginPanel
-                    errors={ errors.getSignInError() }
-                    isSigningIn={ statuses.isSigningIn() }
-                    onClick={
-                        (customer) => service.signInCustomer(customer)
-                        .then( () => service.loadShippingOptions() )
-                    }
-                    onClose={ () => setShowSignInPanel(false) } />);
+                result = (
+                    <Layout body={
+                        <LoginPanel
+                            errors={errors.getSignInError()}
+                            isSigningIn={statuses.isSigningIn()}
+                            onClick={(customer) => this.loginCustomer(customer)}
+                            onClose={() => this.setState({showSignInPanel: false})}/>
+                    }/>);
+            } else {
+                if (data.getCustomer().id === 0) {
+                    result = (
+                        <a className='button button--primary' onClick={ () => this.setState({showSignInPanel: true})}>Log In</a>
+                    );
+                }
             }
         }
 
@@ -88,27 +105,67 @@ export default function CheckoutMain(props) {
     };
 
     /**
+     * login customer event handler.
+     *
+     * @param customer
+     * @returns {Promise<CheckoutSelectors>}
+     */
+    loginCustomer(customer) {
+        return this.service.signInCustomer(customer)
+            .then(({data}) => {
+                this.setCustomer(this.prepareCustomerData(data));
+                return Promise.resolve();
+            }).then(() => this.service.loadShippingOptions())
+            .catch((error) => {
+                this.setState({showSignInPanel: false});
+            });
+    }
+
+    /**
      * Loading state.
      *
      * @returns {string}
      */
-    const renderLoadingState = () => {
+    renderLoadingState() {
         let result = '';
-        if (!data) {
-            result = <LoadingState />;
+        if (!this.state.data) {
+            result = <Layout body={<LoadingState/>}/>;
         }
 
         return result;
     };
 
-    const renderUserForm = () => {
+    /**
+     * Render form.
+     *
+     * @returns {*}
+     */
+    renderUserForm() {
+        let {data, customerEmail, customerFullName, customerCompanyName} = this.state;
+
         if (data) {
             return <UserForm
                 email={customerEmail}
                 fullName={customerFullName}
                 companyName={customerCompanyName}
-                updateHandle={ (data) => {console.log(data, 'data')} }
+                updateHandle={(data) => {
+                    let {userEmail, company, name} = data;
+                    console.log(data, 'UserForm');
+                    this.setCustomer({email: userEmail, company, fullName: name});
+                }}
             />
+        }
+    };
+
+    /**
+     * Set customer data.
+     *
+     * @param customer
+     */
+    setCustomer(customer) {
+        if (customer) {
+            let {email, company, fullName} = customer;
+            this.setState({customerEmail: email, customerFullName: fullName, customerCompanyName: company})
         }
     };
 
@@ -118,13 +175,8 @@ export default function CheckoutMain(props) {
      * @returns {boolean}
      * @private
      */
-    const _isPlacingOrder = () => {
-        return isPlacingOrder && (
-            statuses.isSigningIn() ||
-            statuses.isUpdatingShippingAddress() ||
-            statuses.isUpdatingBillingAddress() ||
-            statuses.isSubmittingOrder()
-        );
+    _isPlacingOrder() {
+        return this.state.isPlacingOrder;
     };
 
     /**
@@ -134,56 +186,117 @@ export default function CheckoutMain(props) {
      * @param isGuest
      * @private
      */
-    const _submitOrder = (event, isGuest) => {
+    _submitOrder(event, isGuest) {
         event.preventDefault();
-        
-        let addresses = data.getShippingAddress();
+
+        let address = {
+            address1: "Test Adress 23 /3",
+            address2: "Club Campestre",
+            city: "Outlying Islands",
+            company: "Custom Company",
+            country: "Russian Federation",
+            countryCode: "RU",
+            email: "",
+            firstName: "",
+            lastName: "",
+            phone: "11111111",
+            postalCode: "11221",
+            stateOrProvince: "Outlying Islands",
+            stateOrProvinceCode: "",
+        };
+
+        let {customerEmail, customerFullName, customerCompanyName} = this.state;
 
         const [firstName, lastName] = customerFullName.split(' ');
-    
+
         /**
          * Set data params to address.
          *
          * @type {Address&{firstName: string, lastName: string, company: string, email: string}}
          */
-        addresses = { ...addresses, email: customerEmail, company: customerCompanyName, firstName, lastName };
-    
-        console.log(addresses, 'addresses');
-        const options = state.data.getShippingOptions();
-        
-        console.log( state, 'blat');
+        address = {...address, email: customerEmail, company: customerCompanyName, firstName, lastName};
 
-        // billingAddressPayload = { ...billingAddressPayload, email: state.customer.email };
-        //
-        // let { payment } = state; /** @todo implement checkong and setting payment here. */
+        const {data} = this.state;
+        const {service} = this;
 
-        // setIsPlacingOrder(true);
-        return;
-       
+        this.setState({setIsPlacingOrder: true});
 
-        //
-        // Promise.all([
-        //     isGuest ? service.continueAsGuest(state.customer) : Promise.resolve(),
-        //     service.updateBillingAddress(billingAddressPayload),
-        // ])
-        //     .then(() => service.submitOrder({ payment }))
-        //     .then(({ data }) => {
-        //         window.location.href = data.getConfig().links.orderConfirmationLink;
-        //     })
-        //     .catch(() => setIsPlacingOrder(false));
+        Promise.all([
+            isGuest ? service.continueAsGuest({email: customerEmail}) : Promise.resolve(),
+            isGuest ? service.updateShippingAddress(address) : Promise.resolve(),
+            service.updateBillingAddress(address)
+        ])
+            .then(() => {
+                /**
+                 * Get available shipping options here
+                 * @type {ShippingOption[]}
+                 */
+                let options = data.getShippingOptions();
+                let shippingMethod = options.pop();
+
+                /**
+                 * Set first available shipping here.
+                 */
+                return service.selectShippingOption(shippingMethod.id);
+            })
+            .then(() => service.loadPaymentMethods())
+            .then(({data}) => data.getPaymentMethods())
+            .then((paymentMethods) => {
+                /**
+                 * Get First payment method - for this case it is Cache.
+                 * @todo add type validations here.
+                 * @type {PaymentMethod}
+                 */
+                let method = paymentMethods[0];
+                let payment = {methodId: method.id, gatewayId: method.gateway};
+                return service.initializePayment(payment)
+                    .then(() => Promise.resolve(payment))
+            })
+            .then((payment) => {
+                return service.submitOrder({payment})
+            })
+            .then(({data}) => {
+                window.location.href = data.getConfig().links.orderConfirmationLink;
+            })
+            .catch((error) => {
+                console.error(error);
+                this.setState({setIsPlacingOrder: false});
+            });
     };
 
-    const renderCheckout = () => {
+    renderCheckout() {
+        const {data} = this.state;
+
         return (
-            <form onSubmit={ (event) => _submitOrder(event, data.getCustomer().isGuest) }>
+            <form onSubmit={(event) => this._submitOrder(event, data.getCustomer().isGuest)}>
                 <SubmitButton
-                    label={ _isPlacingOrder() ?
+                    label={this._isPlacingOrder() ?
                         'Placing your order...' :
-                        `Pay ${ formatPrice((data.getCheckout()).grandTotal, data) }`
+                        `Pay ${formatPrice((data.getCheckout()).grandTotal, data)}`
                     }
-                    isLoading={ _isPlacingOrder() } />
+                    isLoading={this._isPlacingOrder()}/>
             </form>
         )
+    };
+
+    /**
+     * Render cart info.
+     *
+     * @returns {string}
+     */
+    renderCart() {
+        const {data} = this.state;
+        let result = '';
+        if (data) {
+            result = (
+                <Cart
+                    formatAmount={(price) => formatPrice(price, data)}
+                    checkout={data.getCheckout()}
+                    cartLink={(data.getConfig()).links.cartLink}/>
+            );
+        }
+
+        return result;
     };
 
     /**
@@ -191,22 +304,36 @@ export default function CheckoutMain(props) {
      *
      * @returns {*}
      */
-    const render = () => {
+    renderAll() {
+        const {data} = this.state;
         let result = '';
         if (!data) {
-            result = renderLoadingState();
+            result =  ( <div data-tab={'blat'} className={styles.loading}> {this.renderLoadingState()} </div>)
         } else {
             result = (
-                <>
-                    {renderLoginPannel()}
-                    {renderUserForm()}
-                    {renderCheckout()}
-                </>
+                <Fragment>
+                    <div className={styles.body}>
+                        <Panel body={
+                            <>
+                                {this.renderLoginPanel()}
+                                {this.renderUserForm()}
+                                {this.renderCheckout()}
+                            </>
+                        }/>
+                    </div>
+                    <div className={styles.side}>
+                        {this.renderCart()}
+                    </div>
+                </Fragment>
             );
         }
 
         return result;
     };
 
-    return ( render() );
+    render() {
+        return (
+            <Layout body={this.renderAll()}/>
+        );
+    }
 }

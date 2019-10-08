@@ -1,12 +1,13 @@
 import React from 'react';
 import classNames from 'classnames';
+import styles from './input-container.scss';
 
 export default function TextInput({id, label, helpText, width, value, onChange}) {
     return (
-        <div className={'test'}>
+        <div className={ classNames(styles.container, styles[width ? width + 'Width' : 'fullWidth']) }>
             <label
                 htmlFor={id}
-                className=''>
+                className={ styles.label }>
                 {label} {helpText && <span className="help">({helpText})</span>}
             </label>
             <input
@@ -15,7 +16,7 @@ export default function TextInput({id, label, helpText, width, value, onChange})
                 value={value || ''}
                 required
                 onChange={onChange}
-                className='form-input form-input'/>
+                className={ styles.input }  />
         </div>
     );
 }

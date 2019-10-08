@@ -2,38 +2,50 @@ import React, {useState, useEffect} from 'react';
 import EmailInput from "../inputs/EmailInput";
 import TextInput from "../inputs/TextInput";
 
-export default function UserForm({email: loggedEmail, fullName: name, companyName: company, updateHandle}) {
+export default function UserForm({email, fullName, companyName, updateHandle}) {
 
-    const [email, setEmail] = useState(loggedEmail);
-    const [companyName, setCompanyName] = useState(company);
-    const [fullName, setFullName] = useState(name);
+    const [customerEmail, setCustomerEmail] = useState('');
+    const [customerCompanyName, setCustomerCompanyName] = useState('');
+    const [customerFullName, setCustomerFullName] = useState('');
+
 
     /**
      * Triggered only if one of params was update.
      */
     useEffect(() => {
-        updateHandle({email, companyName, fullName});
-    }, [email, companyName, fullName]);
+        let userEmail = customerEmail || email;
+        let name = customerFullName || fullName;
+        let company = customerCompanyName || companyName;
+
+        setCustomerFullName(name);
+        setCustomerEmail(userEmail);
+        setCustomerCompanyName(company);
+
+        if (userEmail || company || name) {
+            updateHandle({userEmail, company, name});
+        }
+
+    }, [customerEmail, customerCompanyName, customerFullName]);
 
     return (
         <>
           <TextInput
               id={'user-name'}
               label={'User Full Name'}
-              value={fullName}
-              onChange={({target}) => setFullName(target.value)}/>
+              value={customerFullName || fullName}
+              onChange={({target}) => setCustomerFullName(target.value)}/>
 
           <EmailInput
               id={'customerEmail'}
               label={'Email'}
-              value={email}
-              onChange={({target}) => setEmail(target.value)}/>
+              value={customerEmail || email}
+              onChange={({target}) => setCustomerEmail(target.value)}/>
 
             <TextInput
                 id={'company name'}
                 label={'Company Name'}
-                value={companyName}
-                onChange={({target}) => setCompanyName(target.value)}/>
+                value={customerCompanyName || companyName}
+                onChange={({target}) => setCustomerCompanyName(target.value)}/>
         </>
     );
 }

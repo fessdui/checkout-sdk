@@ -1,14 +1,13 @@
 /**
  * Format price.
  */
-export function formatPrice(amount, chekoutData) {
+export function formatPrice(amount, checkoutData) {
     let result = '';
-
-    if (chekoutData) {
-        const config = chekoutData.getConfig();
+    if (checkoutData) {
+        const config = checkoutData.getConfig();
         const {currency} = config;
 
-        if (currency.symbolLocation == 'left') {
+        if (currency.symbolLocation === 'left') {
             result = `${currency.symbol} ${amount}`
         } else {
             result = `${amount} ${currency.symbol}`
