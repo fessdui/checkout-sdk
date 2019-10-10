@@ -19,10 +19,6 @@ export default class Checkout extends React.PureComponent {
             isPlacingOrder: false,
             showSignInPanel: false,
             validationErrors: {},
-            customerEmail: '',
-            customerFirstName: '',
-            customerLastName: '',
-            customerCompanyName: '',
         };
     }
 
@@ -40,45 +36,25 @@ export default class Checkout extends React.PureComponent {
         });
     }
 
-    componentDidUpdate(prevProps, prevState, snapshot) {
-        const {data, validationErrors} = this.state;
-
-        if (prevState.data !== data) {
-            if (data) {
-                this.setCustomer(this.prepareCustomerData(data));
-            }
-        }
-
-        console.log(validationErrors, 'validationErrors');
-    }
-
     componentWillUnmount() {
         this.unsubscribe();
     }
 
     /**
-     * Prepare customer data.
+     * Prepare form data.
      *
-     * @param data
-     * @returns {{fullName: *, company: *, email: *}}
+     * @param event
      */
-    prepareCustomerData(data) {
-        const {id, email, firstName, lastName, addresses} = data.getCustomer();
-        let result = false;
+    prepareFormData(event) {
+        const formData = {};
 
-        if (id !== 0) {
-            let company = '';
-
-            if (addresses.length > 0) {
-                company = addresses[0].company
-            }
-
-            result = {email, firstName, lastName, company};
-        }
-
-        return result;
-    };
-
+        ['email', 'firstName', 'lastName', 'companyName'].map((field) => {
+            formData[field] = event.target.elements[field].value;
+        });
+        
+        return formData;
+    }
+    
     /**
      * Login form.
      *
@@ -87,7 +63,7 @@ export default class Checkout extends React.PureComponent {
     renderLoginPanel() {
         let {data, showSignInPanel, statuses, errors} = this.state;
         let result = '';
-        if (data) {
+        if (false) {
             if (showSignInPanel) {
                 result = (
                     <Layout body={
@@ -117,12 +93,10 @@ export default class Checkout extends React.PureComponent {
      */
     loginCustomer(customer) {
         return this.service.signInCustomer(customer)
-            .then(({data}) => {
-                this.setCustomer(this.prepareCustomerData(data));
-                return Promise.resolve();
-            }).then(() => this.service.loadShippingOptions())
+            .then(() => this.setState({showSignInPanel: false}))
+            .then(() => this.service.loadShippingOptions())
             .catch((error) => {
-                this.setState({showSignInPanel: false});
+                this.setState({showSignInPanel: true});
             });
     }
 
@@ -146,19 +120,12 @@ export default class Checkout extends React.PureComponent {
      * @returns {*}
      */
     renderUserForm() {
-        let {data, customerEmail, customerFirstName, customerLastName, customerCompanyName, validationErrors} = this.state;
+        let {data, validationErrors} = this.state;
 
         if (data) {
             return <UserForm
-                email={customerEmail}
-                firstName={customerFirstName}
-                lastName={customerLastName}
+                customer={data.getCustomer()}
                 validationErrors={validationErrors}
-                companyName={customerCompanyName}
-                updateHandle={data => {
-                    this.setState({validationErrors: {}});
-                    this.setCustomer(data);
-                }}
             />
         }
     };
@@ -171,7 +138,6 @@ export default class Checkout extends React.PureComponent {
     setCustomer(customer) {
         if (customer) {
             let {email, firstName, lastName, company} = customer;
-            console.log(email, firstName, lastName, company, 'setCustomer');
             this.setState({customerEmail: email, customerFirstName: firstName, customerLastName: lastName, customerCompanyName: company})
         }
     };
@@ -196,34 +162,35 @@ export default class Checkout extends React.PureComponent {
     _submitOrder(event, isGuest) {
         event.preventDefault();
 
-        if (!this.validate()) {
+        let formData = this.prepareFormData(event);
+        let {email, firstName, lastName , company} = formData;
+
+        if (!this.validate(formData)) {
             return;
         }
-
+        
         let address = {
-            address1: "Test Adress 23 /3",
+            address1: "965 W Chicago Ave.",
             address2: "Club Campestre",
-            city: "Outlying Islands",
-            company: "Custom Company",
-            country: "Russian Federation",
-            countryCode: "RU",
+            city: "Chicago",
+            company: "",
+            country: "United States",
+            countryCode: "US",
             email: "",
             firstName: "",
             lastName: "",
             phone: "11111111",
-            postalCode: "11221",
+            postalCode: "60642",
             stateOrProvince: "Outlying Islands",
             stateOrProvinceCode: "",
         };
-
-        let {customerEmail, customerFirstName, customerLastName , customerCompanyName} = this.state;
 
         /**
          * Set data params to address.
          *
          * @type {Address&{firstName: string, lastName: string, company: string, email: string}}
          */
-        address = {...address, email: customerEmail, company: customerCompanyName, firstName: customerFirstName, lastName: customerLastName};
+        address = {...address, email, company, firstName, lastName};
 
         const {data} = this.state;
         const {service} = this;
@@ -283,6 +250,7 @@ export default class Checkout extends React.PureComponent {
 
         return (
             <form onSubmit={(event) => this._submitOrder(event, data.getCustomer().isGuest)}>
+                {this.renderUserForm()}
                 <SubmitButton
                     label={this._isPlacingOrder() ?
                         'Placing your order...' :
@@ -322,18 +290,12 @@ export default class Checkout extends React.PureComponent {
         const {data} = this.state;
         let result = '';
         if (!data) {
-            result =  ( <div data-tab={'blat'} className={styles.loading}> {this.renderLoadingState()} </div>)
+            result =  ( <div className={styles.loading}> {this.renderLoadingState()} </div>)
         } else {
             result = (
                 <Fragment>
                     <div className={styles.body}>
-                        <Panel body={
-                            <>
-                                {this.renderLoginPanel()}
-                                {this.renderUserForm()}
-                                {this.renderCheckoutSubmit()}
-                            </>
-                        }/>
+                        <Panel body={this.renderCheckoutSubmit() }/>
                     </div>
                     <div className={styles.side}>
                         {this.renderCart()}
@@ -350,25 +312,25 @@ export default class Checkout extends React.PureComponent {
         const errors = {};
 
         switch (name) {
-            case 'customerFirstName':
+            case 'firstName':
                 if (value.length <= 0) {
                     errors.customerFirstName = 'First Name is required!'
                 }
                 break;
-            case 'customerLastName':
+            case 'lastName':
                 if (value.length <= 0) {
                     errors.customerLastName = 'Last Name is required!'
                 }
                 break;
-            case 'customerEmail':
+            case 'email':
                 let regex = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;;
 
                 if (!regex.test(value.toLowerCase())) {
                     errors.customerEmail = 'Email is not valid!'
                 }
-
                 break;
-            case 'customerCompanyName':
+            case 'companyName':
+                debugger;
                 if (value.length <= 0 ) {
                     errors.customerCompanyName = 'Company Name is required!';
                 }
@@ -388,15 +350,16 @@ export default class Checkout extends React.PureComponent {
         return !Object.keys(errors).length > 0;
     }
 
-    validate() {
-        let stateKeys = Object.keys(this.state);
+    validate(formData) {
+        let stateKeys = Object.keys(formData);
 
-        // Filter state and return array with fields name and it`s values.
+        // Filter form data and return array with fields name and it`s values.
         let userData = stateKeys.map( value => {
-            if (typeof this.state[value] == 'string' || typeof this.state[value] == 'undefined') {
+            if (typeof formData[value] == 'string' || typeof formData[value] == 'undefined') {
                 let object = {};
                 object['field'] = value;
-                object['value'] = this.state[value] || '';
+                object['value'] = formData[value] || '';
+
                 return object;
             }
         }).filter(item => item !== undefined);

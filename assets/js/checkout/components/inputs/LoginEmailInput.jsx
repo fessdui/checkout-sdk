@@ -2,7 +2,7 @@ import React from 'react';
 import classNames from 'classnames';
 import styles from './input-container.scss';
 
-export default function LoginEmailInput({id, label, helpText, width, value, errors}) {
+export default function LoginEmailInput({id, label, helpText, width, value, onChange, errors}) {
   return (
       <div className={ classNames(styles.container, styles[width ? width + 'Width' : 'fullWidth']) }>
         <label
@@ -13,9 +13,11 @@ export default function LoginEmailInput({id, label, helpText, width, value, erro
         <input
             type="email"
             id={id}
-            defaultValue={value || ''}
+            value={value || ''}
             required
+            onChange={onChange}
             className={ classNames(styles.input, styles[ (errors || false) ? "error" : '' ] ) }  />
+        
         <div className={classNames(styles[ (errors || false) ? "error_message" : 'hidden' ])}> {errors}</div>
       </div>
   );

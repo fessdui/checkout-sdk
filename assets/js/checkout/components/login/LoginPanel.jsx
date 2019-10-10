@@ -1,5 +1,5 @@
 import React, { Fragment, useState } from 'react';
-import EmailInput from '../inputs/EmailInput';
+import LoginEmailInput from '../inputs/LoginEmailInput';
 import PasswordInput from '../inputs/PasswordInput';
 import SubmitButton from '../submit/SubmitButton';
 import styles from './login-panel.scss';
@@ -34,7 +34,7 @@ export default function LoginPanel({onClick, onClose, errors, isSigningIn}) {
             { errors && errors.body.detail }
 
             <div>
-                <EmailInput
+                <LoginEmailInput
                     id={ 'customerEmail' }
                     label={ 'Email' }
                     value={ email }

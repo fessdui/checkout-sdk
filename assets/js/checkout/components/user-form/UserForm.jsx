@@ -3,63 +3,52 @@ import EmailInput from "../inputs/EmailInput";
 import TextInput from "../inputs/TextInput";
 import styles from './user-form.scss';
 
-export default function UserForm({email, firstName: first, lastName: last, companyName, updateHandle, validationErrors}) {
+export default function UserForm({customer, validationErrors}) {
+  
+  
+  
+  const {email, firstName, lastName, company} = ((customer) => {
+    const {id, addresses} = customer;
 
-    const [customerEmail, setCustomerEmail] = useState('');
-    const [customerCompanyName, setCustomerCompanyName] = useState('');
-    const [customerFirstName, setCustomerFirstName] = useState('');
-    const [customerLastName, setCustomerLastName] = useState('');
-
-
-    /**
-     * Triggered only if one of params was update.
-     */
-    useEffect(() => {
-        let userEmail = customerEmail || email;
-        let firstName = customerFirstName || first;
-        let lastName = customerLastName || last;
-        let company = customerCompanyName || companyName;
-
-        if (userEmail || company || firstName || lastName) {
-            updateHandle({email: userEmail, company, firstName, lastName});
-        }
-
-    }, [customerEmail, customerCompanyName, customerFirstName, customerLastName]);
-
-    console.log(customerFirstName, first, 'customerFirstName || first');
-
+    let result = false;
+    let company = '';
+    if (id !== 0) {
+      if (addresses.length > 0) {
+        company = addresses[0].company
+      }
+    }
+    
+    return {...customer, company};
+  })(customer);
+    
     return (
         <>
             <EmailInput
-                id={'customer_email'}
+                id={'email'}
                 label={'Email Address'}
-                value={customerEmail || email}
-                onChange={({target}) => setCustomerEmail(target.value)}
+                value={email}
                 errors={validationErrors['customerEmail']}
             />
                 <div className={styles.user_name}>
                     <TextInput
-                        id={'first_name'}
+                        id={'firstName'}
                         label={'First Name'}
-                        value={customerFirstName || first}
-                        onChange={({target}) => setCustomerFirstName(target.value)}
+                        value={firstName}
                         className={'first_name'}
                         errors={validationErrors['customerFirstName']}
                     />
                     <TextInput
-                        id={'last_name'}
+                        id={'lastName'}
                         label={'Last Name'}
-                        value={customerLastName || last}
-                        onChange={({target}) => setCustomerLastName(target.value)}
+                        value={lastName}
                         className={'last_name'}
                         errors={validationErrors['customerLastName']}
                     />
                 </div>
             <TextInput
-                id={'company_name'}
+                id={'companyName'}
                 label={'Company Name'}
-                value={customerCompanyName || companyName}
-                onChange={({target}) => setCustomerCompanyName(target.value)}
+                value={company}
                 errors={validationErrors['customerCompanyName']}/>
         </>
     );
